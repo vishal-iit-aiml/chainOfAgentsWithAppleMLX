@@ -53,13 +53,23 @@ This will:
 
 ### macOS App
 
-1. Open the Xcode project:
+1. Start the API server:
+
+```bash
+./run_api.sh
+```
+This will:
+- Activate the Python virtual environment
+- Start the API server that the macOS app communicates with
+- The server will run on `localhost:8000`
+
+2. Open the Xcode project:
 
 ```bash
 open ChainOfAgents.xcodeproj
 ```
 
-2. Build and run the app (⌘R)
+3. Build and run the app (⌘R)
 
 The macOS app provides:
 - PDF document selection
@@ -67,6 +77,8 @@ The macOS app provides:
 - Real-time processing visualization
 - Worker agent progress tracking
 - Final synthesis display
+
+Note: The macOS app requires the API server to be running, so make sure to start it with `run_api.sh` before launching the app.
 
 ## Features
 
