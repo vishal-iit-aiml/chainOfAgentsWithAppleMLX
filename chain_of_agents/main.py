@@ -2,6 +2,7 @@ from typing import Optional, Iterator, Dict
 from .agents import WorkerAgent, ManagerAgent
 from .utils import split_into_chunks, get_default_prompts
 import logging
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -74,18 +75,37 @@ class ChainOfAgents:
         previous_cu = None
         
         chunks = split_into_chunks(input_text, self.chunk_size, self.worker_model)
+        total_chunks = len(chunks)
+        
+        # Debug logging for metadata
+        metadata_message = {
+            "type": "metadata",
+            "content": json.dumps({
+                "total_chunks": total_chunks,
+                "total_pages": getattr(input_text, 'total_pages', 0)
+            })
+        }
+        logger.info(f"Sending metadata: {metadata_message}")  # Debug log
+        yield metadata_message
         
         for i, chunk in enumerate(chunks):
-            logger.info(f"Processing chunk {i+1}/{len(chunks)}")
+            logger.info(f"Processing chunk {i+1}/{total_chunks}")
             worker = WorkerAgent(self.worker_model, self.worker_prompt)
             output = worker.process_chunk(chunk, query, previous_cu)
             worker_outputs.append(output)
             previous_cu = output
             
-            yield {
+            # Debug logging for worker message
+            worker_message = {
                 "type": "worker",
-                "content": output
+                "content": output,
+                "progress": {
+                    "current": i + 1,
+                    "total": total_chunks
+                }
             }
+            logger.info(f"Sending worker message: {worker_message}")  # Debug log
+            yield worker_message
         
         logger.info("Processing manager synthesis")
         manager = ManagerAgent(self.manager_model, self.manager_prompt)
