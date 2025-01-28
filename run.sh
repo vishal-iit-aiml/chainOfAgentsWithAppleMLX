@@ -29,9 +29,11 @@ fi
 echo "Running Chain of Agents example..."
 python3 - << EOF
 from chain_of_agents import ChainOfAgents
+from chain_of_agents.utils import read_pdf
 import os
 from dotenv import load_dotenv
 import pathlib
+import sys
 
 # Load environment variables
 env_path = pathlib.Path('.') / '.env'
@@ -45,17 +47,17 @@ if not os.getenv("GROQ_API_KEY"):
 coa = ChainOfAgents(
     worker_model="llama-3.3-70b-versatile",
     manager_model="llama-3.3-70b-versatile",
-    chunk_size=2000
+    chunk_size=500  # Reduced chunk size for better handling
 )
 
-# Example text and query
-input_text = """
-The Chain of Agents (CoA) framework is designed to handle long-context tasks by breaking them down into manageable chunks. 
-Each chunk is processed by a worker agent, and their outputs are synthesized by a manager agent to produce a final response.
-This approach enables effective processing of documents that exceed the context window of individual language models.
-"""
+# Read PDF file
+pdf_path = "DeepSeek_R1.pdf"  # Updated to your PDF file
+if not os.path.exists(pdf_path):
+    print(f"Error: PDF file not found at {pdf_path}")
+    sys.exit(1)
 
-query = "What is the main purpose of the Chain of Agents framework?"
+input_text = read_pdf(pdf_path)
+query = "What are the key findings and contributions of this research paper about Chain of Agents?"  # Updated query for your paper
 
 # Process the text
 result = coa.process(input_text, query)

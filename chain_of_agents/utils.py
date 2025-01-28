@@ -1,8 +1,31 @@
 from typing import List
 import logging
+import fitz  # PyMuPDF
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def read_pdf(pdf_path: str) -> str:
+    """
+    Read text content from a PDF file.
+    
+    Args:
+        pdf_path: Path to the PDF file
+        
+    Returns:
+        str: Extracted text from the PDF
+    """
+    try:
+        text = []
+        with fitz.open(pdf_path) as doc:
+            logger.info(f"Processing PDF with {len(doc)} pages")
+            for page in doc:
+                text.append(page.get_text())
+        
+        return "\n".join(filter(None, text))  # Filter out empty strings
+    except Exception as e:
+        logger.error(f"Error reading PDF: {str(e)}")
+        raise
 
 def split_into_chunks(text: str, chunk_size: int, model: str = "llama-3.3-70b-versatile") -> List[str]:
     """
@@ -16,12 +39,37 @@ def split_into_chunks(text: str, chunk_size: int, model: str = "llama-3.3-70b-ve
     Returns:
         List[str]: List of text chunks
     """
-    words = text.split()
+    # Split by paragraphs first to maintain context
+    paragraphs = text.split('\n\n')
+    words = []
+    current_chunk = []
     chunks = []
     
-    for i in range(0, len(words), chunk_size):
-        chunk = ' '.join(words[i:i + chunk_size])
-        chunks.append(chunk)
+    for paragraph in paragraphs:
+        # Skip empty paragraphs
+        if not paragraph.strip():
+            continue
+            
+        paragraph_words = paragraph.split()
+        
+        # If adding this paragraph exceeds chunk size, save current chunk and start new one
+        if len(current_chunk) + len(paragraph_words) > chunk_size:
+            if current_chunk:  # Save current chunk if it exists
+                chunks.append(' '.join(current_chunk))
+                current_chunk = []
+            
+            # Handle paragraphs larger than chunk_size
+            while len(paragraph_words) > chunk_size:
+                chunks.append(' '.join(paragraph_words[:chunk_size]))
+                paragraph_words = paragraph_words[chunk_size:]
+            
+            current_chunk = paragraph_words
+        else:
+            current_chunk.extend(paragraph_words)
+    
+    # Add any remaining text
+    if current_chunk:
+        chunks.append(' '.join(current_chunk))
     
     logger.info(f"Split text into {len(chunks)} chunks")
     return chunks
