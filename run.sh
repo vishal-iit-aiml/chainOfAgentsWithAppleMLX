@@ -15,12 +15,13 @@ source venv/bin/activate
 # Install requirements
 echo "Installing requirements..."
 pip install -r requirements.txt
+pip install groq  # Add Groq package
 
 # Check if .env file exists
 if [ ! -f ".env" ]; then
     echo "Creating .env file..."
-    echo "OPENAI_API_KEY=" > .env
-    echo "Please add your OpenAI API key to the .env file"
+    echo "GROQ_API_KEY=" > .env
+    echo "Please add your Groq API key to the .env file"
     exit 1
 fi
 
@@ -36,8 +37,8 @@ load_dotenv()
 
 # Initialize Chain of Agents
 coa = ChainOfAgents(
-    worker_model="gpt-3.5-turbo",
-    manager_model="gpt-4",
+    worker_model="llama-3.3-70b-versatile",
+    manager_model="llama-3.3-70b-versatile",
     chunk_size=2000
 )
 

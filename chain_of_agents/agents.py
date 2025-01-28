@@ -1,5 +1,6 @@
 from typing import List, Optional, Iterator, Dict
-import openai
+from groq import Groq
+import os
 
 class WorkerAgent:
     """Worker agent that processes individual chunks of text."""
@@ -14,6 +15,7 @@ class WorkerAgent:
         """
         self.model = model
         self.system_prompt = system_prompt
+        self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
     
     def process_chunk(self, chunk: str, query: str, previous_cu: Optional[str] = None) -> str:
         """
@@ -32,7 +34,7 @@ class WorkerAgent:
             {"role": "user", "content": f"Chunk: {chunk}\nQuery: {query}\nPrevious CU: {previous_cu or 'None'}"}
         ]
         
-        response = openai.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=0.3
@@ -47,7 +49,7 @@ class WorkerAgent:
             {"role": "user", "content": f"Chunk: {chunk}\nQuery: {query}\nPrevious CU: {previous_cu or 'None'}"}
         ]
         
-        response = await openai.ChatCompletion.acreate(
+        response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=0.3,
@@ -55,7 +57,7 @@ class WorkerAgent:
         )
         
         async for chunk in response:
-            if chunk and chunk.choices and chunk.choices[0].delta.content:
+            if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
 class ManagerAgent:
@@ -71,6 +73,7 @@ class ManagerAgent:
         """
         self.model = model
         self.system_prompt = system_prompt
+        self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
     
     def synthesize(self, worker_outputs: List[str], query: str) -> str:
         """
@@ -91,7 +94,7 @@ class ManagerAgent:
             {"role": "user", "content": f"Worker Outputs:\n{combined_outputs}\n\nQuery: {query}"}
         ]
         
-        response = openai.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=0.3
@@ -109,7 +112,7 @@ class ManagerAgent:
             {"role": "user", "content": f"Worker Outputs:\n{combined_outputs}\n\nQuery: {query}"}
         ]
         
-        response = await openai.ChatCompletion.acreate(
+        response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=0.3,
@@ -117,5 +120,5 @@ class ManagerAgent:
         )
         
         async for chunk in response:
-            if chunk and chunk.choices and chunk.choices[0].delta.content:
+            if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content 

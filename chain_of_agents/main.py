@@ -11,8 +11,8 @@ class ChainOfAgents:
     
     def __init__(
         self,
-        worker_model: str = "gpt-3.5-turbo",
-        manager_model: str = "gpt-4",
+        worker_model: str = "llama-3.3-70b-versatile",  # Groq model for workers
+        manager_model: str = "llama-3.3-70b-versatile",  # Groq model for manager
         chunk_size: int = 2000,
         worker_prompt: Optional[str] = None,
         manager_prompt: Optional[str] = None
