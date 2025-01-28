@@ -1,47 +1,43 @@
-import tiktoken
 from typing import List
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def split_into_chunks(text: str, chunk_size: int, model: str = "gpt-3.5-turbo") -> List[str]:
+def split_into_chunks(text: str, chunk_size: int, model: str = "llama-3.3-70b-versatile") -> List[str]:
     """
-    Split text into chunks based on token count.
+    Split text into chunks based on word count.
     
     Args:
         text: The input text to split
-        chunk_size: Maximum number of tokens per chunk
-        model: The model name to use for token counting
+        chunk_size: Maximum number of words per chunk
+        model: Not used, kept for compatibility
         
     Returns:
         List[str]: List of text chunks
     """
-    encoding = tiktoken.encoding_for_model(model)
-    tokens = encoding.encode(text)
+    words = text.split()
     chunks = []
     
-    for i in range(0, len(tokens), chunk_size):
-        chunk_tokens = tokens[i:i + chunk_size]
-        chunk_text = encoding.decode(chunk_tokens)
-        chunks.append(chunk_text)
+    for i in range(0, len(words), chunk_size):
+        chunk = ' '.join(words[i:i + chunk_size])
+        chunks.append(chunk)
     
     logger.info(f"Split text into {len(chunks)} chunks")
     return chunks
 
-def count_tokens(text: str, model: str = "gpt-3.5-turbo") -> int:
+def count_tokens(text: str, model: str = "llama-3.3-70b-versatile") -> int:
     """
-    Count the number of tokens in a text string.
+    Count the number of words in a text string.
     
     Args:
         text: The input text
-        model: The model name to use for token counting
+        model: Not used, kept for compatibility
         
     Returns:
-        int: Number of tokens
+        int: Number of words
     """
-    encoding = tiktoken.encoding_for_model(model)
-    return len(encoding.encode(text))
+    return len(text.split())
 
 def get_default_prompts() -> tuple[str, str]:
     """

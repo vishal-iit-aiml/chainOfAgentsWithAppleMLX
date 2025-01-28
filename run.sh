@@ -15,7 +15,7 @@ source venv/bin/activate
 # Install requirements
 echo "Installing requirements..."
 pip install -r requirements.txt
-pip install groq  # Add Groq package
+pip install groq
 
 # Check if .env file exists
 if [ ! -f ".env" ]; then
@@ -31,9 +31,15 @@ python3 - << EOF
 from chain_of_agents import ChainOfAgents
 import os
 from dotenv import load_dotenv
+import pathlib
 
 # Load environment variables
-load_dotenv()
+env_path = pathlib.Path('.') / '.env'
+load_dotenv(dotenv_path=env_path)
+
+# Verify API key is loaded
+if not os.getenv("GROQ_API_KEY"):
+    raise ValueError("GROQ_API_KEY not found in environment variables")
 
 # Initialize Chain of Agents
 coa = ChainOfAgents(
