@@ -5,9 +5,9 @@
 //  Created by Rudrank Riyam on 1/28/25.
 //
 
+import PDFKit
 import SwiftUI
 import UniformTypeIdentifiers
-import PDFKit
 
 struct ContentView: View {
   @StateObject private var viewModel = ChainOfAgentsViewModel()
@@ -97,14 +97,7 @@ struct ContentView: View {
         switch result {
         case .success(let urls):
           guard let url = urls.first else { return }
-          viewModel.selectedPDFURL = url
-
-          // Get page count if needed
-          if let pdfDocument = PDFDocument(url: url) {
-            viewModel.pageCount = pdfDocument.pageCount
-          }
-
-          viewModel.error = nil
+          viewModel.selectPDF(url: url)
         case .failure(let error):
           viewModel.error = error.localizedDescription
         }
@@ -114,20 +107,53 @@ struct ContentView: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 24) {
           if viewModel.isLoading {
-            ProgressView("Analyzing document...")
-              .frame(maxWidth: .infinity, alignment: .center)
-              .padding(.top, 40)
+            VStack(spacing: 16) {
+              ProgressView("Processing Document...")
+                .frame(maxWidth: .infinity, alignment: .center)
+
+              // Progress Stats
+              HStack(spacing: 20) {
+                Label(
+                  "\(viewModel.workerMessages.count) chunks processed",
+                  systemImage: "doc.text.fill")
+                Label(
+                  "\(viewModel.pageCount) total pages",
+                  systemImage: "book.fill")
+              }
+              .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(
+              RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.windowBackgroundColor))
+                .shadow(radius: 2)
+            )
+            .padding(.top, 40)
           }
 
           // Worker Messages
           if !viewModel.workerMessages.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
-              Text("Analysis Progress")
-                .font(.title2)
-                .bold()
+              HStack {
+                Text("Analysis Progress")
+                  .font(.title2)
+                  .bold()
+
+                Spacer()
+
+                // Progress indicator
+                if viewModel.isLoading {
+                  Label("Processing...", systemImage: "arrow.triangle.2.circlepath")
+                    .foregroundColor(.blue)
+                }
+              }
 
               ForEach(viewModel.workerMessages) { message in
-                WorkerResponseView(message: message)
+                WorkerResponseView(
+                  message: message,
+                  totalChunks: viewModel.totalChunks
+                )
               }
             }
           }
@@ -135,9 +161,17 @@ struct ContentView: View {
           // Manager Message
           if !viewModel.managerMessage.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
-              Text("Final Summary")
-                .font(.title2)
-                .bold()
+              HStack {
+                Text("Final Summary")
+                  .font(.title2)
+                  .bold()
+
+                if viewModel.isLoading {
+                  Spacer()
+                  ProgressView()
+                    .scaleEffect(0.8)
+                }
+              }
 
               Text(viewModel.managerMessage)
                 .padding()
@@ -148,6 +182,9 @@ struct ContentView: View {
                 )
             }
           }
+
+          Text("Total Chunks: \(viewModel.totalChunks)")  // Debug view
+          Text("Current Progress: \(viewModel.workerMessages.count)/\(viewModel.totalChunks)")  // Debug view
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -161,13 +198,37 @@ struct ContentView: View {
 
 struct WorkerResponseView: View {
   let message: WorkerMessage
+  let totalChunks: Int
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text("Section \(message.id)")
+    VStack(alignment: .leading, spacing: 16) {
+      // Header
+      HStack {
+        Label(
+          "Worker \(message.id) of \(totalChunks)",
+          systemImage: "person.fill"
+        )
         .font(.headline)
-        .foregroundColor(.secondary)
+        .foregroundColor(.blue)
 
+        Spacer()
+
+        if let progress = message.progress {
+          Text("\(progress.current)/\(progress.total)")
+            .foregroundColor(.secondary)
+        }
+      }
+
+      // Progress Bar
+      if let progress = message.progress {
+        ProgressView(
+          value: Double(progress.current),
+          total: Double(progress.total)
+        )
+        .tint(.blue)
+      }
+
+      // Content
       Text(message.message)
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -176,10 +237,15 @@ struct WorkerResponseView: View {
             .fill(Color(.windowBackgroundColor))
             .overlay(
               RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.gray.opacity(0.2))
+                .strokeBorder(Color.blue.opacity(0.2))
             )
         )
     }
+    .padding()
+    .background(
+      RoundedRectangle(cornerRadius: 16)
+        .fill(Color.blue.opacity(0.05))
+    )
   }
 }
 
