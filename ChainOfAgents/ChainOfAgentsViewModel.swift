@@ -5,17 +5,18 @@
 //  Created by Rudrank Riyam on 1/28/25.
 //
 
+import PDFKit
 import SwiftUI
 
 @MainActor
 final class ChainOfAgentsViewModel: ObservableObject {
-  @Published var inputText = ""
+  @Published var selectedPDFURL: URL?
   @Published var query = ""
-  @Published var result = ""
   @Published var isLoading = false
   @Published var error: String?
   @Published var workerMessages: [WorkerMessage] = []
   @Published var managerMessage: String = ""
+  @Published var pageCount: Int = 0
 
   private var urlComponents: URLComponents = {
     var components = URLComponents()
@@ -27,17 +28,22 @@ final class ChainOfAgentsViewModel: ObservableObject {
   }()
 
   func processText() {
-    Task {
-      await processTextAsync()
-    }
-  }
-
-  private func processTextAsync() async {
-    guard !inputText.isEmpty, !query.isEmpty else {
-      error = "Please provide both input text and query"
+    guard let pdfURL = selectedPDFURL else {
+      error = "Please select a PDF file first"
       return
     }
 
+    guard !query.isEmpty else {
+      error = "Please provide a query"
+      return
+    }
+
+    Task {
+      await processTextAsync(pdfURL: pdfURL)
+    }
+  }
+
+  private func processTextAsync(pdfURL: URL) async {
     guard let url = urlComponents.url else {
       error = "Invalid URL configuration"
       return
@@ -49,12 +55,34 @@ final class ChainOfAgentsViewModel: ObservableObject {
     managerMessage = ""
 
     do {
-      let body = ProcessRequest(text: inputText, query: query)
+      // Create multipart form data
+      let boundary = UUID().uuidString
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(
+        "multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
       request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-      request.httpBody = try JSONEncoder().encode(body)
+
+      // Create body
+      var data = Data()
+
+      // Add PDF file
+      data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+      data.append(
+        "Content-Disposition: form-data; name=\"pdf\"; filename=\"\(pdfURL.lastPathComponent)\"\r\n"
+          .data(using: .utf8)!)
+      data.append("Content-Type: application/pdf\r\n\r\n".data(using: .utf8)!)
+      data.append(try Data(contentsOf: pdfURL))
+
+      // Add query
+      data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+      data.append("Content-Disposition: form-data; name=\"query\"\r\n\r\n".data(using: .utf8)!)
+      data.append(query.data(using: .utf8)!)
+
+      // Add final boundary
+      data.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+      request.httpBody = data
 
       let (stream, response) = try await URLSession.shared.bytes(for: request)
 
