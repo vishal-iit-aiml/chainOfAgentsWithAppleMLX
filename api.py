@@ -9,8 +9,8 @@ load_dotenv()
 
 app = Flask(__name__)
 coa = ChainOfAgents(
-    worker_model="gpt-3.5-turbo",
-    manager_model="gpt-4",
+    worker_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+    manager_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
     chunk_size=2000
 )
 

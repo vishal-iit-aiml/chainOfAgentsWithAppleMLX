@@ -1,5 +1,5 @@
 from typing import List, Optional, Iterator, Dict
-from groq import Groq
+from together import Together
 import os
 
 class WorkerAgent:
@@ -15,7 +15,7 @@ class WorkerAgent:
         """
         self.model = model
         self.system_prompt = system_prompt
-        self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+        self.client = Together()  # Uses TOGETHER_API_KEY from environment
     
     def process_chunk(self, chunk: str, query: str, previous_cu: Optional[str] = None) -> str:
         """
@@ -73,7 +73,7 @@ class ManagerAgent:
         """
         self.model = model
         self.system_prompt = system_prompt
-        self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+        self.client = Together()  # Uses TOGETHER_API_KEY from environment
     
     def synthesize(self, worker_outputs: List[str], query: str) -> str:
         """

@@ -1,7 +1,6 @@
-openai>=1.0.0
+together>=0.2.5
 tiktoken>=0.5.0
 python-dotenv>=1.0.0
 typing-extensions>=4.5.0
 flask>=2.0.0
-groq
 PyMuPDF  # for PDF parsing 
