@@ -4,6 +4,7 @@ from chain_of_agents.utils import read_pdf
 from dotenv import load_dotenv
 import json
 import os
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -14,6 +15,8 @@ coa = ChainOfAgents(
     manager_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
     chunk_size=2000
 )
+
+logger = logging.getLogger(__name__)
 
 @app.route('/process', methods=['POST'])
 def process_text():
@@ -49,9 +52,13 @@ def process_stream():
         def generate():
             try:
                 for message in coa.process_stream(input_text, query):
-                    yield f"data: {json.dumps(message)}\n\n"
+                    formatted_message = f"data: {json.dumps(message)}\n\n"
+                    logger.info(f"Sending SSE message: {formatted_message}")  # Debug log
+                    yield formatted_message
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+                error_message = f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+                logger.error(f"Error message: {error_message}")  # Debug log
+                yield error_message
         
         return Response(stream_with_context(generate()), mimetype='text/event-stream')
     
@@ -60,5 +67,9 @@ def process_stream():
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'ok'})
+
 if __name__ == '__main__':
-    app.run(port=5000) 
+    app.run(host='0.0.0.0', port=8000) 
