@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Iterator, Dict
 from .agents import WorkerAgent, ManagerAgent
 from .utils import split_into_chunks, get_default_prompts
 import logging
@@ -67,3 +67,31 @@ class ChainOfAgents:
         final_output = manager.synthesize(worker_outputs, query)
         
         return final_output 
+    
+    def process_stream(self, input_text: str, query: str) -> Iterator[Dict[str, str]]:
+        """Process text with streaming - yields worker and manager messages."""
+        worker_outputs = []
+        previous_cu = None
+        
+        chunks = split_into_chunks(input_text, self.chunk_size, self.worker_model)
+        
+        for i, chunk in enumerate(chunks):
+            logger.info(f"Processing chunk {i+1}/{len(chunks)}")
+            worker = WorkerAgent(self.worker_model, self.worker_prompt)
+            output = worker.process_chunk(chunk, query, previous_cu)
+            worker_outputs.append(output)
+            previous_cu = output
+            
+            yield {
+                "type": "worker",
+                "content": output
+            }
+        
+        logger.info("Processing manager synthesis")
+        manager = ManagerAgent(self.manager_model, self.manager_prompt)
+        final_output = manager.synthesize(worker_outputs, query)
+        
+        yield {
+            "type": "manager",
+            "content": final_output
+        } 

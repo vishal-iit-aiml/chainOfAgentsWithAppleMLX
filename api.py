@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 from chain_of_agents import ChainOfAgents
 from dotenv import load_dotenv
+import json
 import os
 
 # Load environment variables
@@ -24,6 +25,21 @@ def process_text():
         return jsonify({'result': result})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/process-stream', methods=['POST'])
+def process_stream():
+    data = request.json
+    input_text = data.get('text')
+    query = data.get('query')
+    
+    def generate():
+        try:
+            for message in coa.process_stream(input_text, query):
+                yield f"data: {json.dumps(message)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+    
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 if __name__ == '__main__':
     app.run(port=5000) 
