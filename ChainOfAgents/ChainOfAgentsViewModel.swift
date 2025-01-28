@@ -7,6 +7,7 @@
 
 import PDFKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 final class ChainOfAgentsViewModel: ObservableObject {
@@ -17,11 +18,7 @@ final class ChainOfAgentsViewModel: ObservableObject {
   @Published var workerMessages: [WorkerMessage] = []
   @Published var managerMessage: String = ""
   @Published var pageCount: Int = 0
-  @Published var isServerAvailable = false
   @Published var totalChunks: Int = 0
-
-  // Add property to store security scope
-  private var securityScopedBookmark: Data?
 
   private var urlComponents: URLComponents = {
     var components = URLComponents()
@@ -38,50 +35,26 @@ final class ChainOfAgentsViewModel: ObservableObject {
     }
   }
 
-  // Update the cleanup
-  private func cleanup() {
-    // Stop accessing the previous URL if it exists
-    if let url = selectedPDFURL {
-      url.stopAccessingSecurityScopedResource()
-    }
-    selectedPDFURL = nil
-    securityScopedBookmark = nil
-    workerMessages.removeAll()
-    managerMessage = ""
-    totalChunks = 0
-  }
-
-  // Handle file selection
   func selectPDF(url: URL) {
-    cleanup()  // Clean up previous state
-
+    // Start accessing the security-scoped resource
     guard url.startAccessingSecurityScopedResource() else {
       error = "Permission denied to access the file"
       return
     }
 
-    // Create a security-scoped bookmark
-    do {
-      securityScopedBookmark = try url.bookmarkData(
-        options: .minimalBookmark,
-        includingResourceValuesForKeys: nil,
-        relativeTo: nil
-      )
+    // Try to create PDFDocument to verify it's a valid PDF
+    if let pdfDocument = PDFDocument(url: url) {
       selectedPDFURL = url
-
-      if let pdfDocument = PDFDocument(url: url) {
-        pageCount = pdfDocument.pageCount
-      }
-
+      pageCount = pdfDocument.pageCount
       error = nil
-    } catch {
+    } else {
       url.stopAccessingSecurityScopedResource()
-      self.error = "Could not create secure bookmark for file access"
+      error = "Could not open PDF file"
     }
   }
 
   func processText() {
-    guard let bookmark = securityScopedBookmark else {
+    guard let pdfURL = selectedPDFURL else {
       error = "Please select a PDF file first"
       return
     }
@@ -91,33 +64,8 @@ final class ChainOfAgentsViewModel: ObservableObject {
       return
     }
 
-    // Resolve the bookmark to get a fresh URL with access
-    do {
-      var stale = false
-      let url = try URL(
-        resolvingBookmarkData: bookmark,
-        options: .withSecurityScope,
-        relativeTo: nil,
-        bookmarkDataIsStale: &stale
-      )
-
-      if stale {
-        error = "File access has expired, please select the file again"
-        cleanup()
-        return
-      }
-
-      guard url.startAccessingSecurityScopedResource() else {
-        error = "Permission denied to access the file"
-        return
-      }
-
-      Task {
-        await processTextAsync(pdfURL: url)
-      }
-    } catch {
-      self.error = "Could not access the file. Please select it again."
-      cleanup()
+    Task {
+      await processTextAsync(pdfURL: pdfURL)
     }
   }
 
@@ -133,6 +81,9 @@ final class ChainOfAgentsViewModel: ObservableObject {
     managerMessage = ""
 
     do {
+      // Read PDF data
+      let pdfData = try Data(contentsOf: pdfURL)
+
       // Create multipart form data
       let boundary = UUID().uuidString
       var request = URLRequest(url: url)
@@ -143,22 +94,12 @@ final class ChainOfAgentsViewModel: ObservableObject {
 
       // Create body
       var data = Data()
-
-      // Add PDF file
       data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
       data.append(
         "Content-Disposition: form-data; name=\"pdf\"; filename=\"\(pdfURL.lastPathComponent)\"\r\n"
           .data(using: .utf8)!)
       data.append("Content-Type: application/pdf\r\n\r\n".data(using: .utf8)!)
-
-      // Get the file data while we have access
-      let pdfData = try Data(contentsOf: pdfURL)
       data.append(pdfData)
-
-      // Stop accessing the security-scoped resource
-      pdfURL.stopAccessingSecurityScopedResource()
-
-      // Add query and complete the request
       data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
       data.append("Content-Disposition: form-data; name=\"query\"\r\n\r\n".data(using: .utf8)!)
       data.append(query.data(using: .utf8)!)
@@ -240,13 +181,20 @@ final class ChainOfAgentsViewModel: ObservableObject {
       default:
         self.error = "Network error: \(error.localizedDescription)"
       }
-      pdfURL.stopAccessingSecurityScopedResource()
     } catch {
-      pdfURL.stopAccessingSecurityScopedResource()
-      self.error = "Unexpected error: \(error.localizedDescription)"
+      self.error = "Error reading PDF: \(error.localizedDescription)"
     }
 
     isLoading = false
+  }
+
+  deinit {
+    Task { @MainActor in
+      await MainActor.run {
+        selectedPDFURL?.stopAccessingSecurityScopedResource()
+        selectedPDFURL = nil
+      }
+    }
   }
 
   private func checkServerStatus() async {
@@ -255,11 +203,16 @@ final class ChainOfAgentsViewModel: ObservableObject {
     do {
       let (_, response) = try await URLSession.shared.data(from: url)
       if let httpResponse = response as? HTTPURLResponse {
-        isServerAvailable = httpResponse.statusCode == 200
+        if httpResponse.statusCode != 200 {
+          await MainActor.run {
+            self.error = "Server is not responding correctly"
+          }
+        }
       }
     } catch {
-      isServerAvailable = false
-      self.error = "Server not available. Please make sure the API server is running."
+      await MainActor.run {
+        self.error = "Server not available. Please make sure the API server is running."
+      }
     }
   }
 }
