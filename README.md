@@ -10,6 +10,7 @@ This repository implements the Chain-of-Agents framework as described in:
 - [Chain of Agents Paper](https://openreview.net/pdf?id=LuCLf4BJsr) (Research Paper)
 
 The Chain of Agents framework enables efficient processing of long-context tasks by:
+
 1. Breaking down large inputs into manageable chunks
 2. Using worker agents to process individual chunks
 3. Employing a manager agent to synthesize results
@@ -30,9 +31,9 @@ To run the Chain of Agents implementation, use the following command:
 
 ```python
 coa = ChainOfAgents(
-worker_model="gpt-3.5-turbo",
-manager_model="gpt-4",
-chunk_size=2000
+    worker_model="gpt-3.5-turbo",
+    manager_model="gpt-4",
+    chunk_size=2000
 )
 ```
 
@@ -40,8 +41,8 @@ chunk_size=2000
 
 ```python
 result = coa.process(
-input_text="Your long text here...",
-query="What are the main themes in this text?"
+    input_text="Your long text here...",
+    query="What are the main themes in this text?"
 )
 ```
 
@@ -57,9 +58,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ```bibtex
 @article{zhang2024chain,
-title={Chain of Agents: Large Language Models Collaborating on Long-Context Tasks},
-author={Zhang, Yusen and Sun, Ruoxi and Chen, Yanfei and Pfister, Tomas and Zhang, Rui and Arık, Sercan Ö.},
-journal={arXiv preprint arXiv:2404.08392},
-year={2024}
+    title={Chain of Agents: Large Language Models Collaborating on Long-Context Tasks},
+    author={Zhang, Yusen and Sun, Ruoxi and Chen, Yanfei and Pfister, Tomas and Zhang, Rui and Arık, Sercan Ö.},
+    journal={arXiv preprint arXiv:2404.08392},
+    year={2024}
 }
 ```
