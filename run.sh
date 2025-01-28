@@ -57,7 +57,7 @@ if not os.path.exists(pdf_path):
     sys.exit(1)
 
 input_text = read_pdf(pdf_path)
-query = "What are the key findings and contributions of this research paper about Chain of Agents?"  # Updated query for your paper
+query = "What are the key features, capabilities, and technical specifications of the DeepSeek R1 model? Please include any benchmark results or performance comparisons mentioned in the paper."
 
 # Process the text
 print("\nProcessing document with Chain of Agents...\n")
