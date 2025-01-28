@@ -23,27 +23,67 @@ cd chain-of-agents
 pip install -r requirements.txt
 ```
 
+### Prerequisites
+
+- Python 3.x
+- Xcode 15+ (for macOS app)
+- Together API key (sign up at [Together.ai](https://together.ai))
+
+
 ## Usage
 
-To run the Chain of Agents implementation, use the following command:
+### Command Line Version
 
-### Initialize the chain
+1. Create a `.env` file in the root directory and add your Together API key:
 
-```python
-coa = ChainOfAgents(
-    worker_model="gpt-3.5-turbo",
-    manager_model="gpt-4",
-    chunk_size=2000
-)
+```bash
+echo "TOGETHER_API_KEY=your_api_key_here" >> .env
 ```
 
-### Process a long document
+2. Run the example script:
 
-```python
-result = coa.process(
-    input_text="Your long text here...",
-    query="What are the main themes in this text?"
-)
+```bash
+./run.sh
+```
+
+This will:
+- Set up a Python virtual environment
+- Install required dependencies
+- Process a sample PDF document using the Chain of Agents framework
+
+### macOS App
+
+1. Open the Xcode project:
+
+```bash
+open ChainOfAgents.xcodeproj
+```
+
+2. Build and run the app (⌘R)
+
+The macOS app provides:
+- PDF document selection
+- Custom query input
+- Real-time processing visualization
+- Worker agent progress tracking
+- Final synthesis display
+
+## Features
+
+- Support for PDF document analysis
+- Configurable chunk sizes for processing
+- Real-time progress tracking
+- Streaming responses from both worker and manager agents
+- Clean macOS native interface
+- Support for Together AI's LLaMA models
+
+## Models
+
+The project uses Together AI's hosted models:
+
+```python 
+- Worker model: `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free`
+- Manager model: `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free`
 ```
 
 ## Contributing
