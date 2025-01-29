@@ -23,9 +23,8 @@ final class LLMManager {
     var isDownloading = false
     var downloadProgress = 0.0
 
-    private let modelConfiguration = ModelRegistry.llama3_2_3B_4bit
+    private let modelConfiguration = ModelRegistry.llama3_1_8B_4bit
     private let generateParameters = GenerateParameters(temperature: 0.3)
-    private let maxTokens = 240
 
     private enum LoadState {
         case idle

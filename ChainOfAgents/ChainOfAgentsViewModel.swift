@@ -23,7 +23,7 @@ final class ChainOfAgentsViewModel: ObservableObject {
 
     let llmManager = LLMManager()
     private let (workerPrompt, managerPrompt) = ChainUtils.getDefaultPrompts()
-    private let chunkSize = 500
+    private let chunkSize = 2000
     private var urlComponents: URLComponents = {
         var components = URLComponents()
         components.scheme = "http"
