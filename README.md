@@ -1,5 +1,7 @@
 # Chain of Agents Implementation
 
+![Chain of Agents](Screenshot%202025-01-29%20at%2015.05.34.png)
+
 Chain of Agents (CoA) implementation in Python and Swift - A framework for long-context tasks using Large Language Models (LLMs).
 
 ## Overview
