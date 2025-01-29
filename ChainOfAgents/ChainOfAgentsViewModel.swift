@@ -106,13 +106,14 @@ final class ChainOfAgentsViewModel: ObservableObject {
 
         var workerResponses: [String] = []
         var previousCU: String? = nil
+        var sharedMemory: [String] = []
 
         for (index, chunk) in chunks.enumerated() {
             do {
                 let response = try await llmManager.processChunk(
                     chunk,
                     query: query,
-                    previousCU: previousCU
+                    previousCU: sharedMemory.joined(separator: "\n") // Pass the cumulative memory
                 )
 
                 let workerMessage = WorkerMessage(
@@ -128,6 +129,11 @@ final class ChainOfAgentsViewModel: ObservableObject {
                 workerResponses.append(response)
                 previousCU = response
 
+                // Update shared memory
+                sharedMemory.append(response)
+                if sharedMemory.count > 5 {
+                    sharedMemory.removeFirst()
+                }
             } catch {
                 self.error = "Error processing chunk \(index + 1): \(error.localizedDescription)"
                 return

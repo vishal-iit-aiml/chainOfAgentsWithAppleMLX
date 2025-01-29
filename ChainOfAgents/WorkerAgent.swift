@@ -52,22 +52,20 @@ final class WorkerAgent {
         MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
 
         let userPrompt = """
-        Process the following document chunk and answer the following query, considering the previous cognitive unit if provided.
-        
+        You are analyzing a document chunk. Use the shared memory buffer to maintain continuity.
+
         Query: \(query)
-        
-        Document chunk:
+
+        Document Chunk:
         \(chunk)
-        
-        Previous Cognitive Unit: \(previousCU ?? "None")
-        
+
+        Previous Memory Buffer:
+        \(previousCU ?? "No previous context available.")
+
         Instructions:
-        1. If this chunk contains relevant information for the query, provide a concise analysis.
-        2. If this chunk does NOT contain relevant information:
-           - State that no new information was found
-           - Reference and maintain the previous analysis if it exists
-           - Do not repeat or rephrase the previous analysis unnecessarily
-        3. Always maintain continuity with the previous cognitive unit when building your response.
+        1. If this chunk contains new information, summarize and integrate it.
+        2. If it lacks relevant information, reinforce previous findings without repeating.
+        3. Ensure consistency and logical flow across chunks.
         """
 
         let messages = [
