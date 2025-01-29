@@ -15,6 +15,20 @@ The Chain of Agents framework enables efficient processing of long-context tasks
 2. Using worker agents to process individual chunks
 3. Employing a manager agent to synthesize results
 
+## Features
+
+- Support for PDF document analysis
+- Configurable chunk sizes for processing
+- Real-time progress tracking
+- Streaming responses from both worker and manager agents
+- Clean macOS native interface
+- Dual processing modes:
+  - Cloud-based processing using Together AI's LLaMA models
+  - On-device processing using MLX framework
+- Support for offline inference with MLX
+
+## Installation
+
 ## Installation
 
 ```bash
@@ -71,23 +85,53 @@ open ChainOfAgents.xcodeproj
 
 3. Build and run the app (⌘R)
 
+#### Processing Modes
+
+- **Cloud Processing**: Uses Together AI's hosted models through the API server
+- **On-Device Processing**: Uses MLX framework for local inference
+  - Automatically downloads and caches the required model
+  - No internet connection required after initial model download
+  - Lower latency but may have different performance characteristics
+
 The macOS app provides:
 - PDF document selection
 - Custom query input
 - Real-time processing visualization
 - Worker agent progress tracking
 - Final synthesis display
+- Toggle between cloud and on-device processing
 
-Note: The macOS app requires the API server to be running, so make sure to start it with `run_api.sh` before launching the app.
+## Models
 
-## Features
+### Cloud Processing
+Uses Together AI's hosted models:
+- Worker model: `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free`
+- Manager model: `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free`
 
-- Support for PDF document analysis
-- Configurable chunk sizes for processing
-- Real-time progress tracking
-- Streaming responses from both worker and manager agents
-- Clean macOS native interface
-- Support for Together AI's LLaMA models
+### On-Device Processing
+Uses MLX-optimized models:
+- Default model: `llama-3.1-8B` (Quantized 8-bit version)
+- Automatically handles model downloading and caching
+- Optimized for Apple Silicon processors
+
+## Technical Details
+
+- Built with SwiftUI for the macOS interface
+- Uses MLX framework for efficient on-device inference
+- Implements Server-Sent Events (SSE) for real-time progress updates
+- Supports concurrent processing of document chunks
+- Automatic memory management for large documents
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Citation
+
 
 ## Models
 
