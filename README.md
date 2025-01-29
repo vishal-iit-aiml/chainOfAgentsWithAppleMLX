@@ -132,26 +132,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Citation
 
-
-## Models
-
-The project uses Together AI's hosted models:
-
-```python 
-- Worker model: `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free`
-- Manager model: `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free`
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Citation
-
 ```bibtex
 @article{zhang2024chain,
     title={Chain of Agents: Large Language Models Collaborating on Long-Context Tasks},
