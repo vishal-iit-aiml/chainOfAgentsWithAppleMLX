@@ -21,9 +21,9 @@ final class LLMManager {
     var messages: [WorkerMessage] = []
     var managerMessage = ""
 
-    let modelConfiguration = ModelRegistry.llama3_2_3B_4bit
-    let generateParameters = GenerateParameters(temperature: 0.6)
-    let maxTokens = 240
+    private let modelConfiguration = ModelRegistry.llama3_2_3B_4bit
+    private let generateParameters = GenerateParameters(temperature: 0.3)
+    private let maxTokens = 240
 
     private enum LoadState {
         case idle
@@ -58,7 +58,7 @@ final class LLMManager {
         }
     }
 
-    func processChunk(_ chunk: String, query: String) async throws -> String {
+    func processChunk(_ chunk: String, query: String, previousCU: String? = nil) async throws -> String {
         guard !running else { return "" }
 
         running = true
@@ -66,22 +66,27 @@ final class LLMManager {
         do {
             let modelContainer = try await load()
             MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
-            
-            let prompt = """
-Process the following document chunk and answer the following query: \(query)
-            
-Document chunk:
-\(chunk)
 
-Provide a concise analysis focusing only on relevant information for the query.
-"""
+            let prompt = """
+            Process the following document chunk and answer the following query, considering the previous cognitive unit if provided.
+            
+            Query: \(query)
+            
+            Document chunk:
+            \(chunk)
+            
+            Previous Cognitive Unit: \(previousCU ?? "None")
+            
+            Provide a concise analysis focusing only on relevant information for the query, building upon previous context if available.
+            """
 
             let result = try await modelContainer.perform { [prompt] context in
                 let input = try await context.processor.prepare(input: .init(prompt: prompt))
                 return try MLXLMCommon.generate(
-                    input: input, parameters: generateParameters, context: context
+                    input: input,
+                    parameters: generateParameters,
+                    context: context
                 ) { tokens in
-                    let text = context.tokenizer.decode(tokens: tokens)
                     return .more
                 }
             }
@@ -103,23 +108,28 @@ Provide a concise analysis focusing only on relevant information for the query.
         do {
             let modelContainer = try await load()
             MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
-            
+
             let combinedResponses = responses.enumerated()
-                .map { "Analysis \($0.offset + 1): \($0.element)" }
+                .map { "Worker \($0.offset + 1): \($0.element)" }
                 .joined(separator: "\n\n")
 
             let prompt = """
-Based on the following analyses of document chunks, provide a comprehensive answer to the query: \(query)
+            Based on the following analyses from worker agents, provide a comprehensive answer to the query.
             
-\(combinedResponses)
-
-Provide a clear, well-organized summary that directly addresses the query.
-"""
+            Query: \(query)
+            
+            Worker Analyses:
+            \(combinedResponses)
+            
+            Provide a clear, well-organized final summary that directly addresses the query.
+            """
 
             let result = try await modelContainer.perform { [prompt] context in
                 let input = try await context.processor.prepare(input: .init(prompt: prompt))
                 return try MLXLMCommon.generate(
-                    input: input, parameters: generateParameters, context: context
+                    input: input,
+                    parameters: generateParameters,
+                    context: context
                 ) { tokens in
                     let text = context.tokenizer.decode(tokens: tokens)
                     return .more
@@ -135,4 +145,3 @@ Provide a clear, well-organized summary that directly addresses the query.
         }
     }
 }
-

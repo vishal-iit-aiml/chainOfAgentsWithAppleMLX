@@ -19,9 +19,11 @@ final class ChainOfAgentsViewModel: ObservableObject {
     @Published var managerMessage: String = ""
     @Published var pageCount: Int = 0
     @Published var totalChunks: Int = 0
-    @Published var useOnDeviceProcessing = true
+    @Published var useOnDeviceProcessing = false
 
     private let llmManager = LLMManager()
+    private let (workerPrompt, managerPrompt) = ChainUtils.getDefaultPrompts()
+    private let chunkSize = 500
     private var urlComponents: URLComponents = {
         var components = URLComponents()
         components.scheme = "http"
@@ -97,34 +99,48 @@ final class ChainOfAgentsViewModel: ObservableObject {
             error = "Could not open PDF file"
             return
         }
-
-        // Process each page
-        let chunks = (0..<pdfDocument.pageCount).compactMap { pageIndex in
-            pdfDocument.page(at: pageIndex)?.string
-        }
-
+        
+        let text = ChainUtils.extractText(from: pdfDocument)
+        let chunks = ChainUtils.splitIntoChunks(text: text, chunkSize: chunkSize)
         totalChunks = chunks.count
-
-        do {
-            var workerResponses: [String] = []
-
-            // Process each chunk with worker
-            for (index, chunk) in chunks.enumerated() {
-                let response = try await llmManager.processChunk(chunk, query: query)
+        
+        var workerResponses: [String] = []
+        var previousCU: String? = nil
+        
+        for (index, chunk) in chunks.enumerated() {
+            do {
+                let response = try await llmManager.processChunk(
+                    chunk,
+                    query: query,
+                    previousCU: previousCU
+                )
+                
                 let workerMessage = WorkerMessage(
                     id: index + 1,
                     message: response,
-                    progress: StreamMessage.ProgressInfo(current: index + 1, total: totalChunks)
+                    progress: StreamMessage.ProgressInfo(
+                        current: index + 1,
+                        total: totalChunks
+                    )
                 )
+                
                 workerMessages.append(workerMessage)
                 workerResponses.append(response)
+                previousCU = response
+                
+            } catch {
+                self.error = "Error processing chunk \(index + 1): \(error.localizedDescription)"
+                return
             }
-
-            // Get final summary from manager
-            managerMessage = try await llmManager.summarizeResponses(workerResponses, query: query)
-
+        }
+        
+        do {
+            managerMessage = try await llmManager.summarizeResponses(
+                workerResponses,
+                query: query
+            )
         } catch {
-            self.error = error.localizedDescription
+            self.error = "Error generating final summary: \(error.localizedDescription)"
         }
     }
 
