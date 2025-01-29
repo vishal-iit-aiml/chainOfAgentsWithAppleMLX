@@ -20,6 +20,8 @@ final class LLMManager {
     var stat = ""
     var messages: [WorkerMessage] = []
     var managerMessage = ""
+    var isDownloading = false
+    var downloadProgress = 0.0
 
     private let modelConfiguration = ModelRegistry.llama3_2_3B_4bit
     private let generateParameters = GenerateParameters(temperature: 0.3)
@@ -36,11 +38,14 @@ final class LLMManager {
         switch loadState {
         case .idle:
             MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
+            isDownloading = true
+            downloadProgress = 0.0
 
             let modelContainer = try await LLMModelFactory.shared.loadContainer(
                 configuration: modelConfiguration
             ) { [modelConfiguration] progress in
                 Task { @MainActor in
+                    self.downloadProgress = progress.fractionCompleted
                     self.modelInfo = "Downloading \(modelConfiguration.name): \(Int(progress.fractionCompleted * 100))%"
                 }
             }
@@ -49,6 +54,7 @@ final class LLMManager {
                 context.model.numParameters()
             }
 
+            isDownloading = false
             self.modelInfo = "Loaded \(modelConfiguration.id). Weights: \(numParams / (1024*1024))M"
             loadState = .loaded(modelContainer)
             return modelContainer

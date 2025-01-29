@@ -58,10 +58,26 @@ struct ContentView: View {
 
           // Processing Mode Section
           Section {
-            Toggle("Use On-Device Processing", isOn: $viewModel.useOnDeviceProcessing)
-              .toggleStyle(.switch)
-              .padding(.vertical, 8)
-              .tint(.blue)
+            VStack(spacing: 12) {
+              Toggle("Use On-Device Processing", isOn: $viewModel.useOnDeviceProcessing)
+                .toggleStyle(.switch)
+                .padding(.vertical, 8)
+                .tint(.blue)
+
+              if viewModel.useOnDeviceProcessing {
+                VStack(spacing: 8) {
+                  if viewModel.llmManager.isDownloading {
+                    ProgressView("Downloading Model", value: viewModel.llmManager.downloadProgress, total: 1.0)
+                      .progressViewStyle(.linear)
+                      .tint(.blue)
+                  }
+                  Text(viewModel.llmManager.modelInfo)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .animation(.default, value: viewModel.llmManager.isDownloading)
+              }
+            }
           } header: {
             Text("Processing Mode")
               .font(.title3)

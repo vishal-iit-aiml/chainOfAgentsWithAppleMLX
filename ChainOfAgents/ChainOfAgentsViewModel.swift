@@ -21,7 +21,7 @@ final class ChainOfAgentsViewModel: ObservableObject {
     @Published var totalChunks: Int = 0
     @Published var useOnDeviceProcessing = false
 
-    private let llmManager = LLMManager()
+    let llmManager = LLMManager()
     private let (workerPrompt, managerPrompt) = ChainUtils.getDefaultPrompts()
     private let chunkSize = 500
     private var urlComponents: URLComponents = {
@@ -99,14 +99,14 @@ final class ChainOfAgentsViewModel: ObservableObject {
             error = "Could not open PDF file"
             return
         }
-        
+
         let text = ChainUtils.extractText(from: pdfDocument)
         let chunks = ChainUtils.splitIntoChunks(text: text, chunkSize: chunkSize)
         totalChunks = chunks.count
-        
+
         var workerResponses: [String] = []
         var previousCU: String? = nil
-        
+
         for (index, chunk) in chunks.enumerated() {
             do {
                 let response = try await llmManager.processChunk(
@@ -114,7 +114,7 @@ final class ChainOfAgentsViewModel: ObservableObject {
                     query: query,
                     previousCU: previousCU
                 )
-                
+
                 let workerMessage = WorkerMessage(
                     id: index + 1,
                     message: response,
@@ -123,17 +123,17 @@ final class ChainOfAgentsViewModel: ObservableObject {
                         total: totalChunks
                     )
                 )
-                
+
                 workerMessages.append(workerMessage)
                 workerResponses.append(response)
                 previousCU = response
-                
+
             } catch {
                 self.error = "Error processing chunk \(index + 1): \(error.localizedDescription)"
                 return
             }
         }
-        
+
         do {
             managerMessage = try await llmManager.summarizeResponses(
                 workerResponses,
