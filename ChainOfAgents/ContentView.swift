@@ -54,6 +54,15 @@ struct ContentView: View {
           .buttonStyle(.plain)
         }
 
+        // Add Processing Toggle after PDF Selection
+        VStack(alignment: .leading, spacing: 12) {
+          Text("Processing Mode")
+            .font(.headline)
+
+          Toggle("Use On-Device Processing", isOn: $viewModel.useOnDeviceProcessing)
+            .toggleStyle(.switch)
+        }
+
         // Query Section
         VStack(alignment: .leading, spacing: 12) {
           Text("Query")

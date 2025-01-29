@@ -19,6 +19,7 @@ final class ChainOfAgentsViewModel: ObservableObject {
     @Published var managerMessage: String = ""
     @Published var pageCount: Int = 0
     @Published var totalChunks: Int = 0
+    @Published var useOnDeviceProcessing = false
 
     private var urlComponents: URLComponents = {
         var components = URLComponents()
@@ -70,15 +71,30 @@ final class ChainOfAgentsViewModel: ObservableObject {
     }
 
     private func processTextAsync(pdfURL: URL) async {
-        guard let url = urlComponents.url else {
-            error = "Invalid URL configuration"
-            return
-        }
-
         isLoading = true
         error = nil
         workerMessages.removeAll()
         managerMessage = ""
+
+        if useOnDeviceProcessing {
+            await processOnDevice(pdfURL: pdfURL)
+        } else {
+            await processWithServer(pdfURL: pdfURL)
+        }
+
+        isLoading = false
+    }
+
+    private func processOnDevice(pdfURL: URL) async {
+        // This will be implemented once you provide the Python code
+        error = "On-device processing not implemented yet"
+    }
+
+    private func processWithServer(pdfURL: URL) async {
+        guard let url = urlComponents.url else {
+            error = "Invalid URL configuration"
+            return
+        }
 
         do {
             // Read PDF data
@@ -178,8 +194,6 @@ final class ChainOfAgentsViewModel: ObservableObject {
         } catch {
             self.error = "Error reading PDF: \(error.localizedDescription)"
         }
-
-        isLoading = false
     }
 
     deinit {
