@@ -33,6 +33,14 @@ final class LLMManager {
 
     private var loadState = LoadState.idle
 
+    private let worker: WorkerAgent
+    private let manager: ManagerAgent
+
+    init() {
+        self.worker = WorkerAgent()
+        self.manager = ManagerAgent()
+    }
+
     private func load() async throws -> ModelContainer {
         switch loadState {
         case .idle:
