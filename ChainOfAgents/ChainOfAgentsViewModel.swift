@@ -21,6 +21,7 @@ final class ChainOfAgentsViewModel: ObservableObject {
     @Published var totalChunks: Int = 0
     @Published var useOnDeviceProcessing = false
 
+    private let llmManager = LLMManager()
     private var urlComponents: URLComponents = {
         var components = URLComponents()
         components.scheme = "http"
@@ -66,28 +67,55 @@ final class ChainOfAgentsViewModel: ObservableObject {
         }
 
         Task {
-            await processTextAsync(pdfURL: pdfURL)
+            isLoading = true
+            error = nil
+            workerMessages.removeAll()
+            managerMessage = ""
+
+            if useOnDeviceProcessing {
+                await processOnDevice(pdfURL: pdfURL)
+            } else {
+                await processWithServer(pdfURL: pdfURL)
+            }
+
+            isLoading = false
         }
-    }
-
-    private func processTextAsync(pdfURL: URL) async {
-        isLoading = true
-        error = nil
-        workerMessages.removeAll()
-        managerMessage = ""
-
-        if useOnDeviceProcessing {
-            await processOnDevice(pdfURL: pdfURL)
-        } else {
-            await processWithServer(pdfURL: pdfURL)
-        }
-
-        isLoading = false
     }
 
     private func processOnDevice(pdfURL: URL) async {
-        // This will be implemented once you provide the Python code
-        error = "On-device processing not implemented yet"
+        guard let pdfDocument = PDFDocument(url: pdfURL) else {
+            error = "Could not open PDF file"
+            return
+        }
+
+        // Process each page
+        let chunks = (0..<pdfDocument.pageCount).compactMap { pageIndex in
+            pdfDocument.page(at: pageIndex)?.string
+        }
+
+        totalChunks = chunks.count
+
+        do {
+            var workerResponses: [String] = []
+
+            // Process each chunk with worker
+            for (index, chunk) in chunks.enumerated() {
+                let response = try await llmManager.processChunk(chunk, query: query)
+                let workerMessage = WorkerMessage(
+                    id: index + 1,
+                    message: response,
+                    progress: StreamMessage.ProgressInfo(current: index + 1, total: totalChunks)
+                )
+                workerMessages.append(workerMessage)
+                workerResponses.append(response)
+            }
+
+            // Get final summary from manager
+            managerMessage = try await llmManager.summarizeResponses(workerResponses, query: query)
+
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func processWithServer(pdfURL: URL) async {
