@@ -105,15 +105,16 @@ final class ChainOfAgentsViewModel: ObservableObject {
         totalChunks = chunks.count
 
         var workerResponses: [String] = []
-        var previousCU: String? = nil
-        var sharedMemory: [String] = []
+        var sharedMemory: [Int: String] = [:] // Store key insights by chunk ID
 
         for (index, chunk) in chunks.enumerated() {
             do {
+                let latestContext = sharedMemory.values.joined(separator: "\n")
+
                 let response = try await llmManager.processChunk(
                     chunk,
                     query: query,
-                    previousCU: sharedMemory.joined(separator: "\n") // Pass the cumulative memory
+                    previousCU: latestContext
                 )
 
                 let workerMessage = WorkerMessage(
@@ -127,12 +128,12 @@ final class ChainOfAgentsViewModel: ObservableObject {
 
                 workerMessages.append(workerMessage)
                 workerResponses.append(response)
-                previousCU = response
 
                 // Update shared memory
-                sharedMemory.append(response)
-                if sharedMemory.count > 5 {
-                    sharedMemory.removeFirst()
+                if let lastKey = sharedMemory.keys.max() {
+                    sharedMemory[lastKey] = mergeInsights(sharedMemory[lastKey] ?? "", response)
+                } else {
+                    sharedMemory[sharedMemory.count] = response
                 }
             } catch {
                 self.error = "Error processing chunk \(index + 1): \(error.localizedDescription)"
@@ -148,6 +149,11 @@ final class ChainOfAgentsViewModel: ObservableObject {
         } catch {
             self.error = "Error generating final summary: \(error.localizedDescription)"
         }
+    }
+
+    private func mergeInsights(_ oldSummary: String, _ newSummary: String) -> String {
+        if oldSummary.contains(newSummary) { return oldSummary } // Avoid repetition
+        return "\(oldSummary)\n\nUpdated insights:\n\(newSummary)"
     }
 
     private func processWithServer(pdfURL: URL) async {
@@ -253,15 +259,6 @@ final class ChainOfAgentsViewModel: ObservableObject {
             }
         } catch {
             self.error = "Error reading PDF: \(error.localizedDescription)"
-        }
-    }
-
-    deinit {
-        Task { [weak self] in
-            await MainActor.run {
-                self?.selectedPDFURL?.stopAccessingSecurityScopedResource()
-                self?.selectedPDFURL = nil
-            }
         }
     }
 

@@ -51,21 +51,22 @@ final class WorkerAgent {
         let modelContainer = try await load()
         MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
 
+        let contextMemory = previousCU ?? "No previous context available."
+
         let userPrompt = """
-        You are analyzing a document chunk. Use the shared memory buffer to maintain continuity.
+        Review the worker analysis carefully.
 
         Query: \(query)
 
-        Document Chunk:
+        Previous Context:
+        \(contextMemory)
+
+        Current Chunk:
         \(chunk)
 
-        Previous Memory Buffer:
-        \(previousCU ?? "No previous context available.")
-
-        Instructions:
-        1. If this chunk contains new information, summarize and integrate it.
-        2. If it lacks relevant information, reinforce previous findings without repeating.
-        3. Ensure consistency and logical flow across chunks.
+        1. Detect any contradictions or inconsistencies.
+        2. Ensure all key points are covered and reinforced if needed.
+        3. Generate a refined, final response.
         """
 
         let messages = [
