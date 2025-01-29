@@ -15,88 +15,103 @@ struct ContentView: View {
 
   var body: some View {
     NavigationSplitView {
-      VStack(spacing: 24) {
-        // PDF Selection Section
-        VStack(alignment: .leading, spacing: 12) {
-          Text("Document")
-            .font(.headline)
+      ScrollView {
+        VStack(spacing: 32) {
+          // Document Section
+          Section {
+            Button(action: { showingFilePicker = true }) {
+              VStack(spacing: 12) {
+                Image(systemName: viewModel.selectedPDFURL != nil ? "doc.fill" : "doc.badge.plus")
+                  .font(.system(size: 32))
+                  .foregroundStyle(.blue)
 
-          Button(action: { showingFilePicker = true }) {
-            HStack {
-              Group {
-                if let url = viewModel.selectedPDFURL {
-                  VStack(alignment: .leading, spacing: 4) {
-                    Text(url.lastPathComponent)
-                      .lineLimit(1)
-                    Text("\(viewModel.pageCount) pages")
-                      .font(.caption)
-                      .foregroundColor(.secondary)
+                Group {
+                  if let url = viewModel.selectedPDFURL {
+                    VStack(spacing: 4) {
+                      Text(url.lastPathComponent)
+                        .lineLimit(1)
+                        .font(.headline)
+                      Text("\(viewModel.pageCount) pages")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    }
+                  } else {
+                    Text("Select PDF Document")
+                      .font(.headline)
                   }
-                } else {
-                  Text("Select PDF Document")
                 }
               }
-              .frame(maxWidth: .infinity, alignment: .leading)
-
-              Image(systemName: "doc.badge.plus")
-                .foregroundColor(.blue)
-            }
-            .padding()
-            .background(
-              RoundedRectangle(cornerRadius: 8)
-                .fill(Color(.windowBackgroundColor))
-                .overlay(
-                  RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(Color.gray.opacity(0.2))
-                )
-            )
-          }
-          .buttonStyle(.plain)
-        }
-
-        // Add Processing Toggle after PDF Selection
-        VStack(alignment: .leading, spacing: 12) {
-          Text("Processing Mode")
-            .font(.headline)
-
-          Toggle("Use On-Device Processing", isOn: $viewModel.useOnDeviceProcessing)
-            .toggleStyle(.switch)
-        }
-
-        // Query Section
-        VStack(alignment: .leading, spacing: 12) {
-          Text("Query")
-            .font(.headline)
-
-          TextField("Enter your question about the document...", text: $viewModel.query)
-            .textFieldStyle(.roundedBorder)
-        }
-
-        // Process Button
-        Button(action: viewModel.processText) {
-          if viewModel.isLoading {
-            ProgressView()
-              .controlSize(.small)
-          } else {
-            Text("Analyze Document")
               .frame(maxWidth: .infinity)
+              .padding(.vertical, 20)
+              .background(
+                RoundedRectangle(cornerRadius: 12)
+                  .fill(Color(.quaternarySystemFill))
+              )
+            }
+            .buttonStyle(.plain)
+          } header: {
+            Text("Document")
+              .font(.title3)
+              .bold()
+              .frame(maxWidth: .infinity, alignment: .leading)
           }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(viewModel.isLoading || viewModel.selectedPDFURL == nil || viewModel.query.isEmpty)
 
-        if let error = viewModel.error {
-          Text(error)
-            .font(.callout)
-            .foregroundColor(.red)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+          // Processing Mode Section
+          Section {
+            Toggle("Use On-Device Processing", isOn: $viewModel.useOnDeviceProcessing)
+              .toggleStyle(.switch)
+              .padding(.vertical, 8)
+              .tint(.blue)
+          } header: {
+            Text("Processing Mode")
+              .font(.title3)
+              .bold()
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
 
-        Spacer()
+          // Query Section
+          Section {
+            TextField("Enter your question...", text: $viewModel.query, axis: .vertical)
+              .textFieldStyle(.plain)
+              .padding(12)
+              .background(
+                RoundedRectangle(cornerRadius: 8)
+                  .fill(Color(.quaternarySystemFill))
+              )
+          } header: {
+            Text("Query")
+              .font(.title3)
+              .bold()
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+
+          // Process Button
+          Button(action: viewModel.processText) {
+            if viewModel.isLoading {
+              ProgressView()
+                .controlSize(.small)
+            } else {
+              Text("Analyze Document")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+            }
+          }
+          .buttonStyle(.borderedProminent)
+          .controlSize(.large)
+          .disabled(viewModel.isLoading || viewModel.selectedPDFURL == nil || viewModel.query.isEmpty)
+
+          if let error = viewModel.error {
+            Text(error)
+              .font(.callout)
+              .foregroundStyle(.red)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+
+          Spacer()
+        }
+        .padding(20)
       }
-      .padding()
-      .frame(minWidth: 300)
+      .frame(minWidth: 320)
       .navigationTitle("Input")
       .fileImporter(
         isPresented: $showingFilePicker,

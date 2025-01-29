@@ -19,7 +19,7 @@ final class ChainOfAgentsViewModel: ObservableObject {
     @Published var managerMessage: String = ""
     @Published var pageCount: Int = 0
     @Published var totalChunks: Int = 0
-    @Published var useOnDeviceProcessing = false
+    @Published var useOnDeviceProcessing = true
 
     private let llmManager = LLMManager()
     private var urlComponents: URLComponents = {
@@ -32,8 +32,12 @@ final class ChainOfAgentsViewModel: ObservableObject {
     }()
 
     init() {
-        Task {
-            await checkServerStatus()
+        // Remove server check on init if on-device processing is selected
+        Task { [weak self] in
+            guard let self else { return }
+            if !self.useOnDeviceProcessing {
+                await self.checkServerStatus()
+            }
         }
     }
 
@@ -66,19 +70,25 @@ final class ChainOfAgentsViewModel: ObservableObject {
             return
         }
 
-        Task {
-            isLoading = true
-            error = nil
-            workerMessages.removeAll()
-            managerMessage = ""
+        Task { [weak self] in
+            guard let self else { return }
+            self.isLoading = true
+            self.error = nil
+            self.workerMessages.removeAll()
+            self.managerMessage = ""
 
-            if useOnDeviceProcessing {
-                await processOnDevice(pdfURL: pdfURL)
+            if self.useOnDeviceProcessing {
+                await self.processOnDevice(pdfURL: pdfURL)
             } else {
-                await processWithServer(pdfURL: pdfURL)
+                // Check server only when not using on-device processing
+                if await self.isServerAvailable() {
+                    await self.processWithServer(pdfURL: pdfURL)
+                } else {
+                    self.error = "Server not available. Please make sure the API server is running."
+                }
             }
 
-            isLoading = false
+            self.isLoading = false
         }
     }
 
@@ -225,10 +235,10 @@ final class ChainOfAgentsViewModel: ObservableObject {
     }
 
     deinit {
-        Task {
+        Task { [weak self] in
             await MainActor.run {
-                selectedPDFURL?.stopAccessingSecurityScopedResource()
-                selectedPDFURL = nil
+                self?.selectedPDFURL?.stopAccessingSecurityScopedResource()
+                self?.selectedPDFURL = nil
             }
         }
     }
@@ -249,6 +259,17 @@ final class ChainOfAgentsViewModel: ObservableObject {
             await MainActor.run {
                 self.error = "Server not available. Please make sure the API server is running."
             }
+        }
+    }
+
+    // Add server availability check
+    private func isServerAvailable() async -> Bool {
+        guard let url = URL(string: "http://localhost:8000/health") else { return false }
+        do {
+            let (_, response) = try await URLSession.shared.data(from: url)
+            return (response as? HTTPURLResponse)?.statusCode == 200
+        } catch {
+            return false
         }
     }
 }
