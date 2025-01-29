@@ -47,7 +47,7 @@ struct ChainUtils {
         
         return chunks
     }
-    
+
     static func extractText(from pdfDocument: PDFDocument) -> String {
         var text: [String] = []
         for i in 0..<pdfDocument.pageCount {
@@ -58,4 +58,3 @@ struct ChainUtils {
         return text.joined(separator: "\n")
     }
 }
-
