@@ -22,7 +22,6 @@ final class ChainOfAgentsViewModel: ObservableObject {
     @Published var useOnDeviceProcessing = false
 
     let llmManager = LLMManager()
-    private let (workerPrompt, managerPrompt) = ChainUtils.getDefaultPrompts()
     private let chunkSize = 2000
     private var urlComponents: URLComponents = {
         var components = URLComponents()
@@ -95,66 +94,51 @@ final class ChainOfAgentsViewModel: ObservableObject {
     }
 
     private func processOnDevice(pdfURL: URL) async {
-        guard let pdfDocument = PDFDocument(url: pdfURL) else {
-            error = "Could not open PDF file"
-            return
-        }
+          guard let pdfDocument = PDFDocument(url: pdfURL) else {
+              error = "Could not open PDF file"
+              return
+          }
 
-        let text = ChainUtils.extractText(from: pdfDocument)
-        let chunks = ChainUtils.splitIntoChunks(text: text, chunkSize: chunkSize)
-        totalChunks = chunks.count
+          let text = ChainUtils.extractText(from: pdfDocument)
+          let chunks = ChainUtils.splitIntoChunks(text: text, chunkSize: chunkSize)
+          totalChunks = chunks.count
 
-        var workerResponses: [String] = []
-        var sharedMemory: [Int: String] = [:] // Store key insights by chunk ID
+          var workerResponses: [String] = []
+          var managerContext: String = "" // Manager maintains a summary
 
-        for (index, chunk) in chunks.enumerated() {
-            do {
-                let latestContext = sharedMemory.values.joined(separator: "\n")
+          for (index, chunk) in chunks.enumerated() {
+              do {
+                  // Worker processes chunk with context from manager
+                  let response = try await llmManager.processChunk(
+                      chunk,
+                      query: query,
+                      previousCU: managerContext
+                  )
 
-                let response = try await llmManager.processChunk(
-                    chunk,
-                    query: query,
-                    previousCU: latestContext
-                )
+                  let workerMessage = WorkerMessage(
+                      id: index + 1,
+                      message: response,
+                      progress: StreamMessage.ProgressInfo(
+                          current: index + 1,
+                          total: totalChunks
+                      )
+                  )
 
-                let workerMessage = WorkerMessage(
-                    id: index + 1,
-                    message: response,
-                    progress: StreamMessage.ProgressInfo(
-                        current: index + 1,
-                        total: totalChunks
-                    )
-                )
+                  workerMessages.append(workerMessage)
+                  workerResponses.append(response)
 
-                workerMessages.append(workerMessage)
-                workerResponses.append(response)
-
-                // Update shared memory
-                if let lastKey = sharedMemory.keys.max() {
-                    sharedMemory[lastKey] = mergeInsights(sharedMemory[lastKey] ?? "", response)
-                } else {
-                    sharedMemory[sharedMemory.count] = response
-                }
-            } catch {
-                self.error = "Error processing chunk \(index + 1): \(error.localizedDescription)"
-                return
-            }
-        }
-
-        do {
-            managerMessage = try await llmManager.summarizeResponses(
-                workerResponses,
-                query: query
-            )
-        } catch {
-            self.error = "Error generating final summary: \(error.localizedDescription)"
-        }
-    }
-
-    private func mergeInsights(_ oldSummary: String, _ newSummary: String) -> String {
-        if oldSummary.contains(newSummary) { return oldSummary } // Avoid repetition
-        return "\(oldSummary)\n\nUpdated insights:\n\(newSummary)"
-    }
+                  // Manager updates context based on worker output
+                  managerMessage = try await llmManager.updateContext(
+                      managerContext: managerContext,
+                      workerResponse: response,
+                      query: query
+                  )
+              } catch {
+                  self.error = "Error processing chunk \(index + 1): \(error.localizedDescription)"
+                  return
+              }
+          }
+      }
 
     private func processWithServer(pdfURL: URL) async {
         guard let url = urlComponents.url else {

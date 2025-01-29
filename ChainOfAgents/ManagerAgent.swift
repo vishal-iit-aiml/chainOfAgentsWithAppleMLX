@@ -44,28 +44,26 @@ final class ManagerAgent {
         }
     }
 
-    func synthesize(_ workerOutputs: [String], query: String) async throws -> String {
+    func updateContext(currentContext: String, workerResponse: String, query: String) async throws -> String {
         let modelContainer = try await load()
         MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
 
-        let combinedOutputs = workerOutputs.enumerated()
-            .map { "Worker \($0.offset + 1): \($0.element)" }
-            .joined(separator: "\n\n")
+        let prompt = """
+             You are a manager agent. Your current knowledge is:
+             
+             \(currentContext)
+             
+             A worker agent has provided the following analysis related to the query '\(query)':
+             
+             \(workerResponse)
+             
+             Update your current knowledge by integrating the worker's analysis, resolving any inconsistencies, and summarizing the most relevant information in the context of the query.
+             """
 
-        let userPrompt = """
-        Based on the following analyses from worker agents, provide a comprehensive answer to the query.
-        
-        Query: \(query)
-        
-        Worker Analyses:
-        \(combinedOutputs)
-        
-        Provide a clear, well-organized final summary that directly addresses the query.
-        """
-
+        // 3. Generate the updated context using the model
         let messages = [
             ["role": "system", "content": systemPrompt],
-            ["role": "user", "content": userPrompt]
+            ["role": "user", "content": prompt]
         ]
 
         let result = try await modelContainer.perform { [messages] context in
@@ -78,7 +76,7 @@ final class ManagerAgent {
                 return .more
             }
         }
-
+        // 4. Return the updated context
         return result.output
     }
 }

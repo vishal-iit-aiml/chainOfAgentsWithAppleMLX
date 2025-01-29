@@ -48,20 +48,6 @@ struct ChainUtils {
         return chunks
     }
     
-    static func getDefaultPrompts() -> (worker: String, manager: String) {
-        let workerPrompt = """
-        You are a worker agent responsible for analyzing a portion of a document.
-        Your task is to identify key information related to the user's query and provide clear, concise analysis.
-        """
-        
-        let managerPrompt = """
-        You are a manager agent responsible for synthesizing information from multiple workers.
-        Your task is to combine their analyses into a coherent, comprehensive response that directly answers the user's query.
-        """
-        
-        return (workerPrompt, managerPrompt)
-    }
-    
     static func extractText(from pdfDocument: PDFDocument) -> String {
         var text: [String] = []
         for i in 0..<pdfDocument.pageCount {

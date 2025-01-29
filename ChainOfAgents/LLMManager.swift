@@ -47,19 +47,7 @@ final class LLMManager {
         }
     }
 
-
-    func summarizeResponses(_ responses: [String], query: String) async throws -> String {
-        guard !running else { return "" }
-        running = true
-
-        do {
-            // Delegate to ManagerAgent
-            let result = try await manager.synthesize(responses, query: query)
-            running = false
-            return result
-        } catch {
-            running = false
-            throw error
-        }
+    func updateContext(managerContext: String, workerResponse: String, query: String) async throws -> String {
+        try await manager.updateContext(currentContext: managerContext, workerResponse: workerResponse, query: query)
     }
 }
