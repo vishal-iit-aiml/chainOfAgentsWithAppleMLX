@@ -1,25 +1,24 @@
 from typing import List, Optional, Iterator, Dict
-from together import Together
-import os
+from mlx_lm import load, generate
 
 class WorkerAgent:
-    """Worker agent that processes individual chunks of text."""
+    """Worker agent that processes individual chunks of text using a local MLX model."""
     
-    def __init__(self, model: str, system_prompt: str):
+    def __init__(self, model_path: str, system_prompt: str):
         """
-        Initialize a worker agent.
+        Initialize a worker agent with a local MLX model.
         
         Args:
-            model: The LLM model to use (e.g., "gpt-3.5-turbo")
+            model_path: Path to the MLX model directory or HF repo (e.g., "mlx-community/Mistral-7B-Instruct-v0.3-4bit")
             system_prompt: The system prompt that defines the worker's role
         """
-        self.model = model
+        self.model_path = model_path
         self.system_prompt = system_prompt
-        self.client = Together()  # Uses TOGETHER_API_KEY from environment
+        self.model, self.tokenizer = load(path_or_hf_repo=model_path)
     
     def process_chunk(self, chunk: str, query: str, previous_cu: Optional[str] = None) -> str:
         """
-        Process a single chunk of text.
+        Process a single chunk of text using the local MLX model.
         
         Args:
             chunk: The text chunk to process
@@ -29,55 +28,52 @@ class WorkerAgent:
         Returns:
             str: The processed output for this chunk
         """
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": f"Chunk: {chunk}\nQuery: {query}\nPrevious CU: {previous_cu or 'None'}"}
+        # Combine system prompt and user input into a single user message
+        user_content = (
+            f"{self.system_prompt}\n\n"
+            f"Chunk: {chunk}\n"
+            f"Query: {query}\n"
+            f"Previous CU: {previous_cu or 'None'}"
+        )
+        conversation = [
+            {"role": "user", "content": user_content}
         ]
         
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=0.3
+        # Apply the chat template
+        prompt = self.tokenizer.apply_chat_template(
+            conversation=conversation,
+            add_generation_prompt=True
         )
         
-        return response.choices[0].message.content
-    
-    async def process_chunk_stream(self, chunk: str, query: str, previous_cu: Optional[str] = None) -> Iterator[str]:
-        """Process a chunk with streaming (for future implementation)."""
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": f"Chunk: {chunk}\nQuery: {query}\nPrevious CU: {previous_cu or 'None'}"}
-        ]
-        
-        response = await self.client.chat.completions.create(
+        # Generate response using MLX
+        response = generate(
             model=self.model,
-            messages=messages,
-            temperature=0.3,
-            stream=True
+            tokenizer=self.tokenizer,
+            prompt=prompt,
+            max_tokens=512,
+            verbose=False
         )
         
-        async for chunk in response:
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+        return response.strip()
 
 class ManagerAgent:
-    """Manager agent that synthesizes outputs from worker agents."""
+    """Manager agent that synthesizes outputs from worker agents using a local MLX model."""
     
-    def __init__(self, model: str, system_prompt: str):
+    def __init__(self, model_path: str, system_prompt: str):
         """
-        Initialize a manager agent.
+        Initialize a manager agent with a local MLX model.
         
         Args:
-            model: The LLM model to use (e.g., "gpt-4")
+            model_path: Path to the MLX model directory or HF repo (e.g., "mlx-community/Mistral-7B-Instruct-v0.3-4bit")
             system_prompt: The system prompt that defines the manager's role
         """
-        self.model = model
+        self.model_path = model_path
         self.system_prompt = system_prompt
-        self.client = Together()  # Uses TOGETHER_API_KEY from environment
+        self.model, self.tokenizer = load(path_or_hf_repo=model_path)
     
     def synthesize(self, worker_outputs: List[str], query: str) -> str:
         """
-        Synthesize outputs from multiple worker agents.
+        Synthesize outputs from multiple worker agents using the local MLX model.
         
         Args:
             worker_outputs: List of outputs from worker agents
@@ -87,38 +83,31 @@ class ManagerAgent:
             str: The final synthesized response
         """
         combined_outputs = "\n\n".join(f"Worker {i+1}: {output}" 
-                                     for i, output in enumerate(worker_outputs))
+                                    for i, output in enumerate(worker_outputs))
         
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": f"Worker Outputs:\n{combined_outputs}\n\nQuery: {query}"}
+        # Combine system prompt and user input into a single user message
+        user_content = (
+            f"{self.system_prompt}\n\n"
+            f"Worker Outputs:\n{combined_outputs}\n\n"
+            f"Query: {query}"
+        )
+        conversation = [
+            {"role": "user", "content": user_content}
         ]
         
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=0.3
+        # Apply the chat template
+        prompt = self.tokenizer.apply_chat_template(
+            conversation=conversation,
+            add_generation_prompt=True
         )
         
-        return response.choices[0].message.content
-    
-    async def synthesize_stream(self, worker_outputs: List[str], query: str) -> Iterator[str]:
-        """Synthesize with streaming (for future implementation)."""
-        combined_outputs = "\n\n".join(f"Worker {i+1}: {output}" 
-                                     for i, output in enumerate(worker_outputs))
-        
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": f"Worker Outputs:\n{combined_outputs}\n\nQuery: {query}"}
-        ]
-        
-        response = await self.client.chat.completions.create(
+        # Generate response using MLX
+        response = generate(
             model=self.model,
-            messages=messages,
-            temperature=0.3,
-            stream=True
+            tokenizer=self.tokenizer,
+            prompt=prompt,
+            max_tokens=1024,
+            verbose=False
         )
         
-        async for chunk in response:
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content 
+        return response.strip()

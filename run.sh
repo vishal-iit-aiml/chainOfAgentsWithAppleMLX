@@ -16,42 +16,31 @@ source venv/bin/activate
 echo "Installing requirements..."
 pip install -r requirements.txt
 
-# Check if .env file exists
-if [ ! -f ".env" ]; then
-    echo "Creating .env file..."
-    echo "TOGETHER_API_KEY=" > .env
-    echo "Please add your Together API key to the .env file"
-    exit 1
+# Ensure Hugging Face CLI is authenticated
+echo "Checking Hugging Face authentication..."
+if ! huggingface-cli whoami > /dev/null 2>&1; then
+    echo "Please log in to Hugging Face CLI:"
+    huggingface-cli login
 fi
 
 # Run example
-echo "Running Chain of Agents example..."
+echo "Running Chain of Agents example with local MLX model..."
 python3 - << EOF
 from chain_of_agents import ChainOfAgents
 from chain_of_agents.utils import read_pdf, split_into_chunks
 from chain_of_agents.agents import WorkerAgent, ManagerAgent
 import os
-from dotenv import load_dotenv
-import pathlib
 import sys
 
-# Load environment variables
-env_path = pathlib.Path('.') / '.env'
-load_dotenv(dotenv_path=env_path)
-
-# Verify API key is loaded
-if not os.getenv("TOGETHER_API_KEY"):
-    raise ValueError("TOGETHER_API_KEY not found in environment variables")
-
-# Initialize Chain of Agents
+# Initialize Chain of Agents with quantized MLX model
 coa = ChainOfAgents(
-    worker_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-    manager_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-    chunk_size=500  # Reduced chunk size for better handling
+    worker_model_path="mlx-community/Mistral-7B-Instruct-v0.3-4bit",  # Updated to 4-bit model
+    manager_model_path="mlx-community/Mistral-7B-Instruct-v0.3-4bit",  # Updated to 4-bit model
+    chunk_size=500
 )
 
 # Read PDF file
-pdf_path = "DeepSeek_R1.pdf"  # Updated to your PDF file
+pdf_path = "DeepSeek_R1.pdf"
 if not os.path.exists(pdf_path):
     print(f"Error: PDF file not found at {pdf_path}")
     sys.exit(1)
@@ -62,7 +51,7 @@ query = "What are the key features, capabilities, and technical specifications o
 # Process the text
 print("\nProcessing document with Chain of Agents...\n")
 
-chunks = split_into_chunks(input_text, coa.chunk_size, coa.worker_model)
+chunks = split_into_chunks(input_text, coa.chunk_size, coa.worker_model_path)
 worker_outputs = []
 previous_cu = None
 
@@ -72,7 +61,7 @@ print("=" * 80 + "\n")
 
 for i, chunk in enumerate(chunks):
     print(f"\n{'='*30} Worker {i+1}/{len(chunks)} {'='*30}")
-    worker = WorkerAgent(coa.worker_model, coa.worker_prompt)
+    worker = WorkerAgent(coa.worker_model_path, coa.worker_prompt)
     output = worker.process_chunk(chunk, query, previous_cu)
     worker_outputs.append(output)
     previous_cu = output
@@ -82,7 +71,7 @@ print("\n" + "=" * 80)
 print("MANAGER SYNTHESIS")
 print("=" * 80 + "\n")
 
-manager = ManagerAgent(coa.manager_model, coa.manager_prompt)
+manager = ManagerAgent(coa.manager_model_path, coa.manager_prompt)
 final_output = manager.synthesize(worker_outputs, query)
 print(final_output)
 
@@ -92,4 +81,4 @@ EOF
 # Deactivate virtual environment
 deactivate
 
-echo "Done!" 
+echo "Done!"

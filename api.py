@@ -5,14 +5,18 @@ from dotenv import load_dotenv
 import json
 import os
 import logging
+import mlx_lm
+
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 coa = ChainOfAgents(
-    worker_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-    manager_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+    # worker_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+    # manager_model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+    worker_model_path="mistralai/Mistral-7B-Instruct-v0.3",  # Use Mistral as per example
+    manager_model_path="mistralai/Mistral-7B-Instruct-v0.3",  # Use Mistral as per example
     chunk_size=2000
 )
 
